@@ -7,6 +7,7 @@ import * as Json from 'jsonc-parser';
 import { JSONSchema, JSONSchemaRef } from '../jsonSchema';
 import { isNumber, equals, isBoolean, isString, isDefined, isObject } from '../utils/objects';
 import { extendedRegExp, stringLength } from '../utils/strings';
+import { preprocessTripleQuotedStrings, mapPositionToOriginal } from '../utils/tripleStringProcessor';
 import { TextDocument, ASTNode, ObjectASTNode, ArrayASTNode, BooleanASTNode, NumberASTNode, StringASTNode, NullASTNode, PropertyASTNode, JSONPath, ErrorCode, Diagnostic, DiagnosticSeverity, Range, SchemaDraft } from '../jsonLanguageTypes';
 
 import * as l10n from '@vscode/l10n';
@@ -1106,8 +1107,18 @@ export function parse(textDocument: TextDocument, config?: JSONDocumentConfig): 
 
 	const problems: Diagnostic[] = [];
 	let lastProblemOffset = -1;
-	const text = textDocument.getText();
-	const scanner = Json.createScanner(text, false);
+	
+	// Preprocess the text to handle triple-quoted strings
+	const originalText = textDocument.getText();
+	const { text: processedText, positionMap } = preprocessTripleQuotedStrings(originalText);
+	
+	// Create a scanner with the processed text
+	const scanner = Json.createScanner(processedText, false);
+	
+	// Function to map positions in the processed text back to the original text
+	const mapToOriginal = (offset: number): number => {
+		return mapPositionToOriginal(offset, positionMap);
+	};
 
 	const commentRanges: Range[] | undefined = config && config.collectComments ? [] : undefined;
 
@@ -1140,11 +1151,14 @@ export function parse(textDocument: TextDocument, config?: JSONDocumentConfig): 
 	}
 
 	function _errorAtRange<T extends ASTNode>(message: string, code: ErrorCode, startOffset: number, endOffset: number, severity: DiagnosticSeverity = DiagnosticSeverity.Error): void {
+		// Map offsets from the processed text back to the original text
+		const originalStartOffset = mapToOriginal(startOffset);
+		const originalEndOffset = mapToOriginal(endOffset);
 
-		if (problems.length === 0 || startOffset !== lastProblemOffset) {
-			const range = Range.create(textDocument.positionAt(startOffset), textDocument.positionAt(endOffset));
+		if (problems.length === 0 || originalStartOffset !== lastProblemOffset) {
+			const range = Range.create(textDocument.positionAt(originalStartOffset), textDocument.positionAt(originalEndOffset));
 			problems.push(Diagnostic.create(range, message, severity, code, textDocument.languageId));
-			lastProblemOffset = startOffset;
+			lastProblemOffset = originalStartOffset;
 		}
 	}
 
@@ -1153,7 +1167,7 @@ export function parse(textDocument: TextDocument, config?: JSONDocumentConfig): 
 		let end = scanner.getTokenOffset() + scanner.getTokenLength();
 		if (start === end && start > 0) {
 			start--;
-			while (start > 0 && /\s/.test(text.charAt(start))) {
+			while (start > 0 && /\s/.test(processedText.charAt(start))) {
 				start--;
 			}
 			end = start + 1;
@@ -1193,6 +1207,16 @@ export function parse(textDocument: TextDocument, config?: JSONDocumentConfig): 
 				_error(l10n.t('Unexpected end of comment.'), ErrorCode.UnexpectedEndOfComment);
 				return true;
 			case Json.ScanError.UnexpectedEndOfString:
+				// Check if this might be due to an unclosed triple-quoted string
+				if (originalText.includes('"""')) {
+					// Perform a simple check to see if this might be related to triple quotes
+					const pos = scanner.getTokenOffset();
+					const lastTripleQuotePos = originalText.lastIndexOf('"""', mapToOriginal(pos));
+					if (lastTripleQuotePos >= 0 && originalText.indexOf('"""', lastTripleQuotePos + 3) < 0) {
+						_error(l10n.t('Unterminated triple-quoted string. Expected """.'), ErrorCode.UnexpectedEndOfString);
+						return true;
+					}
+				}
 				_error(l10n.t('Unexpected end of string.'), ErrorCode.UnexpectedEndOfString);
 				return true;
 			case Json.ScanError.InvalidCharacter:
@@ -1353,6 +1377,14 @@ export function parse(textDocument: TextDocument, config?: JSONDocumentConfig): 
 
 		const node = new StringASTNodeImpl(parent, scanner.getTokenOffset());
 		node.value = scanner.getTokenValue();
+		
+		// Check if this corresponds to a triple-quoted string in the original text
+		const originalOffset = mapToOriginal(scanner.getTokenOffset());
+		if (originalOffset + 2 < originalText.length && originalText.substring(originalOffset, originalOffset + 3) === '"""') {
+			// This is a triple-quoted string - we need to map it correctly
+			// The node's offset should be the start of the triple quotes
+			node.offset = originalOffset;
+		}
 
 		return _finalize(node, true);
 	}
