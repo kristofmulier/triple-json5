@@ -1,0 +1,71 @@
+{
+  "name": "triple-json5",
+  "displayName": "Triple JSON5",
+  "description": "Adds syntax highlighting of tjson5 files (json5 files with triple quoted strings)",
+  "version": "1.0.0",
+  "publisher": "Kristof Mulier",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.98.0"
+  },
+  "main": "./lsp-client/out/client.js",
+  "activationEvents": [
+    "onLanguage:triple-json5"
+  ],
+  "icon": "icon.png",
+  "homepage": "https://github.com/kristofmulier/triple-json5/blob/master/README.md",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kristofmulier/triple-json5"
+  },
+  "keywords": [
+    "tjson5",
+    "json5",
+    "syntax",
+    "highlight",
+    "language-server"
+  ],
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "triple-json5",
+        "aliases": [
+          "Triple JSON5"
+        ],
+        "extensions": [
+          ".tjson5"
+        ],
+        "configuration": "./tjson5.configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "triple-json5",
+        "scopeName": "source.triple-json5",
+        "path": "./syntaxes/tjson5.json"
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "tsc -p lsp-client && tsc -p lsp-server",
+    "watch": "tsc -w -p lsp-client & tsc -w -p lsp-server",
+    "package": "vsce package"
+  },
+  "dependencies": {
+    "@vscode/l10n": "^0.0.18",
+    "jsonc-parser": "^3.3.1",
+    "vscode-languageclient": "^8.1.0",
+    "vscode-languageserver": "^8.1.0",
+    "vscode-languageserver-textdocument": "^1.0.12",
+    "vscode-uri": "^3.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "@types/vscode": "^1.98.0",
+    "typescript": "^4.0.0",
+    "vsce": "^2.11.0"
+  }
+}

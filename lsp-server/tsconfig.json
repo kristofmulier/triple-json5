@@ -1,0 +1,40 @@
+{
+   "compilerOptions": {
+     // Compile to CommonJS modules, which Node.js uses
+     "module": "commonjs",
+   
+     // Use a modern JS target
+     "target": "ES2020",
+   
+     // Where to put compiled .js output
+     "outDir": "out",
+   
+     // Provide modern libs so we have all relevant types
+     "lib": ["ES2020"],
+
+     "types": ["node"],
+   
+     // Look for imports starting in the same directory
+     "rootDir": ".",
+   
+     // Generate source maps (optional, but handy for debugging)
+     "sourceMap": true,
+   
+     // Usually helpful so `import x from "..."` works for commonjs modules
+     "esModuleInterop": true,
+   
+     // Strict mode catches more errors at compile time (optional, recommended)
+     "strict": true
+   },
+   "include": [
+     // The entry point of your server:
+     "server.ts",
+   
+     // The folder where you copied the parser code:
+     "custom-languageservice/**/*"
+   ],
+   "exclude": [
+     // Don't compile the output folder
+     "**/test/**"
+   ]
+}
