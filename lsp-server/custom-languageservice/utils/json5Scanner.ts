@@ -7,57 +7,37 @@ import * as Json from 'jsonc-parser';
 export { SyntaxKind, ScanError } from 'jsonc-parser';
 
 /**
+ * Preprocesses text to handle hex and binary numbers before scanning.
+ * This approach converts 0x and 0b numbers to regular decimal numbers.
+ */
+export function preprocessNumbers(text: string): string {
+    // Regular expressions to find hex and binary numbers
+    const hexRegex = /\b0x([0-9A-Fa-f]+)\b/g;
+    const binaryRegex = /\b0b([01]+)\b/g;
+    
+    // Replace hex numbers with their decimal equivalents
+    let processedText = text.replace(hexRegex, (match, hexDigits) => {
+        const decimalValue = parseInt(hexDigits, 16);
+        return decimalValue.toString();
+    });
+    
+    // Replace binary numbers with their decimal equivalents
+    processedText = processedText.replace(binaryRegex, (match, binaryDigits) => {
+        const decimalValue = parseInt(binaryDigits, 2);
+        return decimalValue.toString();
+    });
+    
+    return processedText;
+}
+
+/**
  * A wrapper around the JSONC scanner that supports JSON5 features like hex and binary numbers.
+ * The text is preprocessed to convert hex/binary numbers to decimal before scanning.
  */
 export function createJson5Scanner(text: string, ignoreTrivia = false) {
-    // Create the original scanner
-    const jsonScanner = Json.createScanner(text, ignoreTrivia);
+    // Preprocess the text to handle hex/binary numbers
+    const processedText = preprocessNumbers(text);
     
-    // Wrap with custom scan function
-    const originalScan = jsonScanner.scan;
-    const originalGetTokenValue = jsonScanner.getTokenValue;
-    const originalGetTokenError = jsonScanner.getTokenError;
-    
-    // Keep track of modified tokens
-    let currentToken: Json.SyntaxKind | null = null;
-    let currentTokenIsCustom = false;
-    let lastTokenValue = '';
-    
-    jsonScanner.scan = function() {
-        currentTokenIsCustom = false;
-        currentToken = originalScan.call(this);
-        
-        // If we got an Unknown token, check if it's a hex or binary number
-        if (currentToken === Json.SyntaxKind.Unknown) {
-            lastTokenValue = originalGetTokenValue.call(this);
-            const hexRegex = /^0x[0-9A-Fa-f]+$/;
-            const binaryRegex = /^0b[01]+$/;
-            
-            if (hexRegex.test(lastTokenValue) || binaryRegex.test(lastTokenValue)) {
-                // Return NumericLiteral for hex/binary formats
-                currentTokenIsCustom = true;
-                return Json.SyntaxKind.NumericLiteral;
-            }
-        }
-        
-        return currentToken;
-    };
-    
-    // Override getTokenValue to return the proper value for custom tokens
-    jsonScanner.getTokenValue = function() {
-        if (currentTokenIsCustom && currentToken === Json.SyntaxKind.NumericLiteral) {
-            return lastTokenValue;
-        }
-        return originalGetTokenValue.call(this);
-    };
-    
-    // Override getTokenError to return ScanError.None for our custom tokens
-    jsonScanner.getTokenError = function() {
-        if (currentTokenIsCustom) {
-            return Json.ScanError.None;
-        }
-        return originalGetTokenError.call(this);
-    };
-    
-    return jsonScanner;
+    // Create the original scanner with the processed text
+    return Json.createScanner(processedText, ignoreTrivia);
 }

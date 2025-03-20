@@ -1109,12 +1109,17 @@ export function parse(textDocument: TextDocument, config?: JSONDocumentConfig): 
 	const problems: Diagnostic[] = [];
 	let lastProblemOffset = -1;
 	
-	// Preprocess the text to handle triple-quoted strings
+	// Preprocess the text to handle triple-quoted strings and then numbers
 	const originalText = textDocument.getText();
-	const { text: processedText, positionMap } = preprocessTripleQuotedStrings(originalText);
 	
-	// Create a custom scanner with the processed text that supports JSON5 features
-	const scanner = createJson5Scanner(processedText, false);
+	// First handle triple-quoted strings
+	const { text: stringProcessedText, positionMap } = preprocessTripleQuotedStrings(originalText);
+	
+	// Use the preprocessed text for scanner (this also handles hex/binary numbers)
+	const scanner = createJson5Scanner(stringProcessedText, false);
+	
+	// Keep a reference to the processed text for error handling
+	const processedText = stringProcessedText;
 	
 	// Function to map positions in the processed text back to the original text
 	const mapToOriginal = (offset: number): number => {
@@ -1394,26 +1399,16 @@ export function parse(textDocument: TextDocument, config?: JSONDocumentConfig): 
 		if (scanner.getToken() !== SyntaxKind.NumericLiteral) {
 			return undefined;
 		}
-
+		
 		const node = new NumberASTNodeImpl(parent, scanner.getTokenOffset());
 		if (scanner.getTokenError() === ScanError.None) {
 			const tokenValue = scanner.getTokenValue();
 			try {
-				let numberValue;
-				// Handle different number formats
-				if (tokenValue.startsWith('0x')) {
-					// Hexadecimal
-					numberValue = parseInt(tokenValue.substring(2), 16);
-					node.isInteger = true;
-				} else if (tokenValue.startsWith('0b')) {
-					// Binary
-					numberValue = parseInt(tokenValue.substring(2), 2);
-					node.isInteger = true;
-				} else {
-					// Regular decimal or floating point
-					numberValue = JSON.parse(tokenValue);
-					node.isInteger = tokenValue.indexOf('.') === -1;
-				}
+				// Parse the number value 
+				// Note: Hex and binary values have already been converted to decimal
+				// by the preprocessNumbers function in json5Scanner.ts
+				const numberValue = JSON.parse(tokenValue);
+				node.isInteger = tokenValue.indexOf('.') === -1;
 				
 				if (!isNumber(numberValue)) {
 					return _error(l10n.t('Invalid number format.'), ErrorCode.Undefined, node);
