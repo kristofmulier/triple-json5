@@ -1230,7 +1230,7 @@ export function parse(textDocument: TextDocument, config?: JSONDocumentConfig): 
 				_scanNext(); // consume comma
 				if (scanner.getToken() === Json.SyntaxKind.CloseBracketToken) {
 					if (needsComma) {
-						_errorAtRange(l10n.t('Trailing comma'), ErrorCode.TrailingComma, commaOffset, commaOffset + 1);
+						// JSON5 allows trailing commas
 					}
 					continue;
 				}
@@ -1324,7 +1324,7 @@ export function parse(textDocument: TextDocument, config?: JSONDocumentConfig): 
 				_scanNext(); // consume comma
 				if (scanner.getToken() === Json.SyntaxKind.CloseBraceToken) {
 					if (needsComma) {
-						_errorAtRange(l10n.t('Trailing comma'), ErrorCode.TrailingComma, commaOffset, commaOffset + 1);
+						// JSON5 allows trailing commas
 					}
 					continue;
 				}
