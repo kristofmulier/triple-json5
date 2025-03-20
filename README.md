@@ -1,4 +1,4 @@
-# triple-json5
+# triple-json5 (tjson5)
 
 Do you love JSON5, but you hate to put all string values on a single line?
 
