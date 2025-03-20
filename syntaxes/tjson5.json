@@ -42,8 +42,13 @@
 			"patterns": [
 				{
 					"comment": "handles hexadecimal numbers",
-					"match": "(0x)[0-9a-fA-f]*",
+					"match": "(0x)[0-9a-fA-F]+",
 					"name": "constant.hex.numeric.json5"
+				},
+				{
+					"comment": "handles binary numbers",
+					"match": "(0b)[01]+",
+					"name": "constant.bin.numeric.json5"
 				},
 				{
 					"comment": "handles integer and decimal numbers",

@@ -8,6 +8,7 @@ import { JSONSchema, JSONSchemaRef } from '../jsonSchema';
 import { isNumber, equals, isBoolean, isString, isDefined, isObject } from '../utils/objects';
 import { extendedRegExp, stringLength } from '../utils/strings';
 import { preprocessTripleQuotedStrings, mapPositionToOriginal } from '../utils/tripleStringProcessor';
+import { createJson5Scanner, SyntaxKind, ScanError } from '../utils/json5Scanner';
 import { TextDocument, ASTNode, ObjectASTNode, ArrayASTNode, BooleanASTNode, NumberASTNode, StringASTNode, NullASTNode, PropertyASTNode, JSONPath, ErrorCode, Diagnostic, DiagnosticSeverity, Range, SchemaDraft } from '../jsonLanguageTypes';
 
 import * as l10n from '@vscode/l10n';
@@ -1112,8 +1113,8 @@ export function parse(textDocument: TextDocument, config?: JSONDocumentConfig): 
 	const originalText = textDocument.getText();
 	const { text: processedText, positionMap } = preprocessTripleQuotedStrings(originalText);
 	
-	// Create a scanner with the processed text
-	const scanner = Json.createScanner(processedText, false);
+	// Create a custom scanner with the processed text that supports JSON5 features
+	const scanner = createJson5Scanner(processedText, false);
 	
 	// Function to map positions in the processed text back to the original text
 	const mapToOriginal = (offset: number): number => {
@@ -1122,19 +1123,19 @@ export function parse(textDocument: TextDocument, config?: JSONDocumentConfig): 
 
 	const commentRanges: Range[] | undefined = config && config.collectComments ? [] : undefined;
 
-	function _scanNext(): Json.SyntaxKind {
+	function _scanNext(): SyntaxKind {
 		while (true) {
 			const token = scanner.scan();
 			_checkScanError();
 			switch (token) {
-				case Json.SyntaxKind.LineCommentTrivia:
-				case Json.SyntaxKind.BlockCommentTrivia:
+				case SyntaxKind.LineCommentTrivia:
+				case SyntaxKind.BlockCommentTrivia:
 					if (Array.isArray(commentRanges)) {
 						commentRanges.push(Range.create(textDocument.positionAt(scanner.getTokenOffset()), textDocument.positionAt(scanner.getTokenOffset() + scanner.getTokenLength())));
 					}
 					break;
-				case Json.SyntaxKind.Trivia:
-				case Json.SyntaxKind.LineBreakTrivia:
+				case SyntaxKind.Trivia:
+				case SyntaxKind.LineBreakTrivia:
 					break;
 				default:
 					return token;
@@ -1142,7 +1143,7 @@ export function parse(textDocument: TextDocument, config?: JSONDocumentConfig): 
 		}
 	}
 
-	function _accept(token: Json.SyntaxKind): boolean {
+	function _accept(token: SyntaxKind): boolean {
 		if (scanner.getToken() === token) {
 			_scanNext();
 			return true;
@@ -1162,7 +1163,7 @@ export function parse(textDocument: TextDocument, config?: JSONDocumentConfig): 
 		}
 	}
 
-	function _error<T extends ASTNodeImpl>(message: string, code: ErrorCode, node: T | undefined = undefined, skipUntilAfter: Json.SyntaxKind[] = [], skipUntil: Json.SyntaxKind[] = []): T | undefined {
+	function _error<T extends ASTNodeImpl>(message: string, code: ErrorCode, node: T | undefined = undefined, skipUntilAfter: SyntaxKind[] = [], skipUntil: SyntaxKind[] = []): T | undefined {
 		let start = scanner.getTokenOffset();
 		let end = scanner.getTokenOffset() + scanner.getTokenLength();
 		if (start === end && start > 0) {
@@ -1179,7 +1180,7 @@ export function parse(textDocument: TextDocument, config?: JSONDocumentConfig): 
 		}
 		if (skipUntilAfter.length + skipUntil.length > 0) {
 			let token = scanner.getToken();
-			while (token !== Json.SyntaxKind.EOF) {
+			while (token !== SyntaxKind.EOF) {
 				if (skipUntilAfter.indexOf(token) !== -1) {
 					_scanNext();
 					break;
@@ -1194,19 +1195,19 @@ export function parse(textDocument: TextDocument, config?: JSONDocumentConfig): 
 
 	function _checkScanError(): boolean {
 		switch (scanner.getTokenError()) {
-			case Json.ScanError.InvalidUnicode:
+			case ScanError.InvalidUnicode:
 				_error(l10n.t('Invalid unicode sequence in string.'), ErrorCode.InvalidUnicode);
 				return true;
-			case Json.ScanError.InvalidEscapeCharacter:
+			case ScanError.InvalidEscapeCharacter:
 				_error(l10n.t('Invalid escape character in string.'), ErrorCode.InvalidEscapeCharacter);
 				return true;
-			case Json.ScanError.UnexpectedEndOfNumber:
+			case ScanError.UnexpectedEndOfNumber:
 				_error(l10n.t('Unexpected end of number.'), ErrorCode.UnexpectedEndOfNumber);
 				return true;
-			case Json.ScanError.UnexpectedEndOfComment:
+			case ScanError.UnexpectedEndOfComment:
 				_error(l10n.t('Unexpected end of comment.'), ErrorCode.UnexpectedEndOfComment);
 				return true;
-			case Json.ScanError.UnexpectedEndOfString:
+			case ScanError.UnexpectedEndOfString:
 				// Check if this might be due to an unclosed triple-quoted string
 				if (originalText.includes('"""')) {
 					// Perform a simple check to see if this might be related to triple quotes
@@ -1219,7 +1220,7 @@ export function parse(textDocument: TextDocument, config?: JSONDocumentConfig): 
 				}
 				_error(l10n.t('Unexpected end of string.'), ErrorCode.UnexpectedEndOfString);
 				return true;
-			case Json.ScanError.InvalidCharacter:
+			case ScanError.InvalidCharacter:
 				_error(l10n.t('Invalid characters in string. Control characters must be escaped.'), ErrorCode.InvalidCharacter);
 				return true;
 		}
@@ -1237,7 +1238,7 @@ export function parse(textDocument: TextDocument, config?: JSONDocumentConfig): 
 	}
 
 	function _parseArray(parent: ASTNode | undefined): ArrayASTNode | undefined {
-		if (scanner.getToken() !== Json.SyntaxKind.OpenBracketToken) {
+		if (scanner.getToken() !== SyntaxKind.OpenBracketToken) {
 			return undefined;
 		}
 		const node = new ArrayASTNodeImpl(parent, scanner.getTokenOffset());
@@ -1245,14 +1246,14 @@ export function parse(textDocument: TextDocument, config?: JSONDocumentConfig): 
 
 		const count = 0;
 		let needsComma = false;
-		while (scanner.getToken() !== Json.SyntaxKind.CloseBracketToken && scanner.getToken() !== Json.SyntaxKind.EOF) {
-			if (scanner.getToken() === Json.SyntaxKind.CommaToken) {
+		while (scanner.getToken() !== SyntaxKind.CloseBracketToken && scanner.getToken() !== SyntaxKind.EOF) {
+			if (scanner.getToken() === SyntaxKind.CommaToken) {
 				if (!needsComma) {
 					_error(l10n.t('Value expected'), ErrorCode.ValueExpected);
 				}
 				const commaOffset = scanner.getTokenOffset();
 				_scanNext(); // consume comma
-				if (scanner.getToken() === Json.SyntaxKind.CloseBracketToken) {
+				if (scanner.getToken() === SyntaxKind.CloseBracketToken) {
 					if (needsComma) {
 						// JSON5 allows trailing commas
 					}
@@ -1263,14 +1264,14 @@ export function parse(textDocument: TextDocument, config?: JSONDocumentConfig): 
 			}
 			const item = _parseValue(node);
 			if (!item) {
-				_error(l10n.t('Value expected'), ErrorCode.ValueExpected, undefined, [], [Json.SyntaxKind.CloseBracketToken, Json.SyntaxKind.CommaToken]);
+				_error(l10n.t('Value expected'), ErrorCode.ValueExpected, undefined, [], [SyntaxKind.CloseBracketToken, SyntaxKind.CommaToken]);
 			} else {
 				node.items.push(item);
 			}
 			needsComma = true;
 		}
 
-		if (scanner.getToken() !== Json.SyntaxKind.CloseBracketToken) {
+		if (scanner.getToken() !== SyntaxKind.CloseBracketToken) {
 			return _error(l10n.t('Expected comma or closing bracket'), ErrorCode.CommaOrCloseBacketExpected, node);
 		}
 
@@ -1283,7 +1284,7 @@ export function parse(textDocument: TextDocument, config?: JSONDocumentConfig): 
 		const node = new PropertyASTNodeImpl(parent, scanner.getTokenOffset(), keyPlaceholder);
 		let key = _parseString(node);
 		if (!key) {
-			if (scanner.getToken() === Json.SyntaxKind.Unknown) {
+			if (scanner.getToken() === SyntaxKind.Unknown) {
 				// give a more helpful error message
 				_error(l10n.t('Property keys must be doublequoted'), ErrorCode.PropertyKeysMustBeDoublequoted);
 				const keyNode = new StringASTNodeImpl(node, scanner.getTokenOffset(), scanner.getTokenLength());
@@ -1311,19 +1312,19 @@ export function parse(textDocument: TextDocument, config?: JSONDocumentConfig): 
 			}
 		}
 
-		if (scanner.getToken() === Json.SyntaxKind.ColonToken) {
+		if (scanner.getToken() === SyntaxKind.ColonToken) {
 			node.colonOffset = scanner.getTokenOffset();
 			_scanNext(); // consume ColonToken
 		} else {
 			_error(l10n.t('Colon expected'), ErrorCode.ColonExpected);
-			if (scanner.getToken() === Json.SyntaxKind.StringLiteral && textDocument.positionAt(key.offset + key.length).line < textDocument.positionAt(scanner.getTokenOffset()).line) {
+			if (scanner.getToken() === SyntaxKind.StringLiteral && textDocument.positionAt(key.offset + key.length).line < textDocument.positionAt(scanner.getTokenOffset()).line) {
 				node.length = key.length;
 				return node;
 			}
 		}
 		const value = _parseValue(node);
 		if (!value) {
-			return _error(l10n.t('Value expected'), ErrorCode.ValueExpected, node, [], [Json.SyntaxKind.CloseBraceToken, Json.SyntaxKind.CommaToken]);
+			return _error(l10n.t('Value expected'), ErrorCode.ValueExpected, node, [], [SyntaxKind.CloseBraceToken, SyntaxKind.CommaToken]);
 		}
 		node.valueNode = value;
 		node.length = value.offset + value.length - node.offset;
@@ -1331,7 +1332,7 @@ export function parse(textDocument: TextDocument, config?: JSONDocumentConfig): 
 	}
 
 	function _parseObject(parent: ASTNode | undefined): ObjectASTNode | undefined {
-		if (scanner.getToken() !== Json.SyntaxKind.OpenBraceToken) {
+		if (scanner.getToken() !== SyntaxKind.OpenBraceToken) {
 			return undefined;
 		}
 		const node = new ObjectASTNodeImpl(parent, scanner.getTokenOffset());
@@ -1339,14 +1340,14 @@ export function parse(textDocument: TextDocument, config?: JSONDocumentConfig): 
 		_scanNext(); // consume OpenBraceToken
 		let needsComma = false;
 
-		while (scanner.getToken() !== Json.SyntaxKind.CloseBraceToken && scanner.getToken() !== Json.SyntaxKind.EOF) {
-			if (scanner.getToken() === Json.SyntaxKind.CommaToken) {
+		while (scanner.getToken() !== SyntaxKind.CloseBraceToken && scanner.getToken() !== SyntaxKind.EOF) {
+			if (scanner.getToken() === SyntaxKind.CommaToken) {
 				if (!needsComma) {
 					_error(l10n.t('Property expected'), ErrorCode.PropertyExpected);
 				}
 				const commaOffset = scanner.getTokenOffset();
 				_scanNext(); // consume comma
-				if (scanner.getToken() === Json.SyntaxKind.CloseBraceToken) {
+				if (scanner.getToken() === SyntaxKind.CloseBraceToken) {
 					if (needsComma) {
 						// JSON5 allows trailing commas
 					}
@@ -1357,21 +1358,21 @@ export function parse(textDocument: TextDocument, config?: JSONDocumentConfig): 
 			}
 			const property = _parseProperty(node, keysSeen);
 			if (!property) {
-				_error(l10n.t('Property expected'), ErrorCode.PropertyExpected, undefined, [], [Json.SyntaxKind.CloseBraceToken, Json.SyntaxKind.CommaToken]);
+				_error(l10n.t('Property expected'), ErrorCode.PropertyExpected, undefined, [], [SyntaxKind.CloseBraceToken, SyntaxKind.CommaToken]);
 			} else {
 				node.properties.push(property);
 			}
 			needsComma = true;
 		}
 
-		if (scanner.getToken() !== Json.SyntaxKind.CloseBraceToken) {
+		if (scanner.getToken() !== SyntaxKind.CloseBraceToken) {
 			return _error(l10n.t('Expected comma or closing brace'), ErrorCode.CommaOrCloseBraceExpected, node);
 		}
 		return _finalize(node, true);
 	}
 
 	function _parseString(parent: ASTNode | undefined): StringASTNode | undefined {
-		if (scanner.getToken() !== Json.SyntaxKind.StringLiteral) {
+		if (scanner.getToken() !== SyntaxKind.StringLiteral) {
 			return undefined;
 		}
 
@@ -1390,15 +1391,30 @@ export function parse(textDocument: TextDocument, config?: JSONDocumentConfig): 
 	}
 
 	function _parseNumber(parent: ASTNode | undefined): NumberASTNode | undefined {
-		if (scanner.getToken() !== Json.SyntaxKind.NumericLiteral) {
+		if (scanner.getToken() !== SyntaxKind.NumericLiteral) {
 			return undefined;
 		}
 
 		const node = new NumberASTNodeImpl(parent, scanner.getTokenOffset());
-		if (scanner.getTokenError() === Json.ScanError.None) {
+		if (scanner.getTokenError() === ScanError.None) {
 			const tokenValue = scanner.getTokenValue();
 			try {
-				const numberValue = JSON.parse(tokenValue);
+				let numberValue;
+				// Handle different number formats
+				if (tokenValue.startsWith('0x')) {
+					// Hexadecimal
+					numberValue = parseInt(tokenValue.substring(2), 16);
+					node.isInteger = true;
+				} else if (tokenValue.startsWith('0b')) {
+					// Binary
+					numberValue = parseInt(tokenValue.substring(2), 2);
+					node.isInteger = true;
+				} else {
+					// Regular decimal or floating point
+					numberValue = JSON.parse(tokenValue);
+					node.isInteger = tokenValue.indexOf('.') === -1;
+				}
+				
 				if (!isNumber(numberValue)) {
 					return _error(l10n.t('Invalid number format.'), ErrorCode.Undefined, node);
 				}
@@ -1406,7 +1422,6 @@ export function parse(textDocument: TextDocument, config?: JSONDocumentConfig): 
 			} catch (e) {
 				return _error(l10n.t('Invalid number format.'), ErrorCode.Undefined, node);
 			}
-			node.isInteger = tokenValue.indexOf('.') === -1;
 		}
 		return _finalize(node, true);
 	}
@@ -1414,11 +1429,11 @@ export function parse(textDocument: TextDocument, config?: JSONDocumentConfig): 
 	function _parseLiteral(parent: ASTNode | undefined): ASTNode | undefined {
 		let node: ASTNodeImpl;
 		switch (scanner.getToken()) {
-			case Json.SyntaxKind.NullKeyword:
+			case SyntaxKind.NullKeyword:
 				return _finalize(new NullASTNodeImpl(parent, scanner.getTokenOffset()), true);
-			case Json.SyntaxKind.TrueKeyword:
+			case SyntaxKind.TrueKeyword:
 				return _finalize(new BooleanASTNodeImpl(parent, true, scanner.getTokenOffset()), true);
-			case Json.SyntaxKind.FalseKeyword:
+			case SyntaxKind.FalseKeyword:
 				return _finalize(new BooleanASTNodeImpl(parent, false, scanner.getTokenOffset()), true);
 			default:
 				return undefined;
@@ -1431,11 +1446,11 @@ export function parse(textDocument: TextDocument, config?: JSONDocumentConfig): 
 
 	let _root: ASTNode | undefined = undefined;
 	const token = _scanNext();
-	if (token !== Json.SyntaxKind.EOF) {
+	if (token !== SyntaxKind.EOF) {
 		_root = _parseValue(_root);
 		if (!_root) {
 			_error(l10n.t('Expected a JSON object, array or literal.'), ErrorCode.Undefined);
-		} else if (scanner.getToken() !== Json.SyntaxKind.EOF) {
+		} else if (scanner.getToken() !== SyntaxKind.EOF) {
 			_error(l10n.t('End of file expected.'), ErrorCode.Undefined);
 		}
 	}
