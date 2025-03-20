@@ -1,56 +1,53 @@
 # triple-json5
 
-> This extension adds syntax highlighting of JSON5 files in VS Code.
+Do you love JSON5, but you hate to put all string values on a single line?
 
-## Colorization
+Well, you can spread string values over multiple lines in JSON5, but it's far from elegant (you need to escape each line with a `\`).
 
-![JSON5 syntax in VS Code](https://cloud.githubusercontent.com/assets/7034281/19013821/e8150e9a-87e4-11e6-9127-e9ec7c989c86.png)
+Wouldn't it be much easier if you could use python-style triple-quoted strings? Welcome to the **triple-json5** file - aka **tjson5**.
 
-(imported from [Atom package](https://github.com/wiredmax/language-json5))
+This repo is a VSCode extension to provide syntax highlighting and LSP (Language Server Protocol) processing for `.tjson5` files in VSCode. An example of a `.tjson5` file:
 
-## Usage
+```json5
+{
+  // This is a single line comment
+  /*
+    This is a multiline comment
+  */
+  "key1": """this is a single line string""",
+  "key2": """
+    this is a multiline string
+  """,
+  "key3": "foo",    // String value
+  "key4": 1010,     // Decimal number
+  "key5": 0b0101,   // Binary number
+  "key6": 0xBEEF,   // Hex number
+  "key7": "foobar", // Trailing comma allowed
+}
+```
 
-### Install the extension in VS Code
+I based this project on the following MIT-licensed repos:
 
-  * Open the command palette using <kbd>Ctrl+P</kbd>.
-  * Type `ext install json5` in the command palette.
+- The syntax highlighting is based on https://github.com/mrmlnc/vscode-json5
+- The LSP (Language Server Protocol) is based on https://github.com/microsoft/vscode-json-languageservice
 
-### Select **JSON5** as a language
+# Usage
 
-  * On the bottom-right corner, click on the select language mode button, if you have created a new file it should display Plain Text.
-  * Select **JSON5** in the list of languages.
-  * Alternatively, saving the file with a `.json5` extension, will allow VS Code to understand that it is a JSON5 file, and automatically select the language correctly.
+* Clone this repo: `git clone https://github.com/kristofmulier/triple-json5`.
 
-### Supported features
+* Open VSCode.
 
-  * Syntax highlight
+* Open the **Extensions** tab on the left.
 
-### Supported filetypes
+* Click the three dots `...` in the top-right corner of the **Extensions** tab, then select `"Install from VSIX..."` in the dropdown.
 
-  * `.json5`
+* Select the `triple-json5-1.0.0.vsix` file from this repo.
 
-## Contributing
+* Open a `.tjson5` file and check if the language in VSCode switches to `Triple JSON5`:
+  
+  <img src="https://github.com/user-attachments/assets/a123df23-6887-4a1c-a57a-b3d307af9264" width="600">
 
-> These simple rules will help me to solve your problem.
 
-  * Check the **Issues** and **Pull requests** sections for duplicates of your question or path.
-  * Please, use GitHub emotions.
-  * If you want create **Issue**:
-    * Specify the version of your editor and used theme.
-    * Detailed description of your problem:
-      * Description
-      * Code sample
-      * Screenshot
-  * If you want create **Pull request**:
-    * Fork this repository and clone it to your machine.
-    * Open folder contains this extension in VS Code.
-    * Press <kbd>F5</kbd>.
-    * Make your changes and send a PR.
-
-## Changelog
-
-See the [Releases section of our GitHub project](https://github.com/mrmlnc/vscode-json5/releases) for changelogs for each release version.
-
-## License
+# License
 
 This software is released under the terms of the MIT license.
