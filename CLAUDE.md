@@ -1,16 +1,25 @@
 # Triple-JSON5 Extension Reference
 
+## Project Overview
+
+Triple-JSON5 (tjson5) is a VSCode extension that provides syntax highlighting and LSP (Language Server Protocol) processing for `.tjson5` files. It extends JSON5 with the addition of Python-style triple-quoted strings, allowing users to easily create multiline strings without escape characters.
+
+Key features:
+- Triple-quoted strings (""") for convenient multiline string support
+- All JSON5 features including comments and trailing commas
+- Support for binary (0b) and hexadecimal (0x) number formats
+
 ## Build Commands
 
 ```bash
 # Compile the extension
 npm run compile
 
+# Watch for changes and recompile
+npm run watch
+
 # Package the extension for distribution
 npm run package
-
-# Run the extension in development mode
-npm run dev
 ```
 
 ## Code Style Guidelines

@@ -1,0 +1,7 @@
+README.md
+setup.py
+tjson5parser.c
+tjson5.egg-info/PKG-INFO
+tjson5.egg-info/SOURCES.txt
+tjson5.egg-info/dependency_links.txt
+tjson5.egg-info/top_level.txt
