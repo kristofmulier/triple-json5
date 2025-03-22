@@ -25,6 +25,9 @@ if exist tjson5parser.cpython*.pyd del /f tjson5parser.cpython*.pyd
 if exist tjson5parser.cp*-win*.pyd del /f tjson5parser.cp*-win*.pyd
 if exist tjson5parser.cpython*.so del /f tjson5parser.cpython*.so
 
+echo Removing Cython-generated C file...
+if exist tjson5parser.c del /f tjson5parser.c
+
 echo.
 echo Build artifacts successfully cleaned.
 echo.

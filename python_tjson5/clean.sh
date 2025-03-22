@@ -23,6 +23,9 @@ rm -f tjson5parser.cpython*.pyd
 rm -f tjson5parser.cp*-win*.pyd
 rm -f tjson5parser.cp*-*-linux-gnu.so
 
+echo "Removing Cython-generated C file..."
+rm -f tjson5parser.c
+
 echo ""
 echo "Build artifacts successfully cleaned."
 echo ""
