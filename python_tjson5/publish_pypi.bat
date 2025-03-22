@@ -72,18 +72,14 @@ echo This will publish the package to PyPI, making it available for anyone to in
 echo.
 echo Before continuing, ensure you have:
 echo 1. Updated the version number in setup.py if needed
-echo 2. Set up your PyPI credentials in one of these ways:
+echo 2. Set up your PyPI API token in your .pypirc file:
 echo.
-echo    Option 1: Create a .pypirc file at C:\Users\krist\.pypirc with:
+echo    Create a .pypirc file at C:\Users\krist\.pypirc with:
 echo        [pypi]
-echo        username = kmulier
-echo        password = your_password
+echo        username = __token__
+echo        password = pypi-xxxx...  (your full API token)
 echo.
-echo    Option 2: Use environment variables:
-echo        set TWINE_USERNAME=kmulier
-echo        set TWINE_PASSWORD=your_password
-echo.
-echo    For better security, you can use API tokens from:
+echo    Check your API token on this page in your PyPI account:
 echo    https://pypi.org/manage/account/token/
 echo.
 
