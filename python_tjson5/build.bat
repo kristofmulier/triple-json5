@@ -39,14 +39,14 @@ if %ERRORLEVEL% neq 0 (
 echo Building distributions...
 echo.
 echo 1. Building wheel package (for Windows)...
-python setup.py bdist_wheel
+python -m build --wheel
 if %ERRORLEVEL% neq 0 (
     echo Failed to build wheel package.
     exit /b 1
 )
 
 echo 2. Building source distribution (for Linux and other platforms)...
-python setup.py sdist
+python -m build --sdist
 if %ERRORLEVEL% neq 0 (
     echo Failed to build source distribution.
     exit /b 1

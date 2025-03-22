@@ -31,16 +31,17 @@ if USE_CYTHON:
 
 setup(
     name="tjson5",
-    version="0.1.1",
+    version="0.1.2",
     description="Triple-JSON5 parser for Python",
     long_description=long_description,
     long_description_content_type="text/markdown",
     author="Kristof Mulier",
-    author_email="kristof.mulier@example.com",
+    author_email="kristofmulier@gmail.com",
     url="https://github.com/kristofmulier/triple-json5",
+    license="MIT",
     ext_modules=ext_modules,
     python_requires=">=3.7",
-    setup_requires=["setuptools>=18.0"],
+    # No setup_requires to avoid deprecation warnings
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",

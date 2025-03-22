@@ -1,5 +1,6 @@
 include README.md
+include LICENSE
 include tjson5parser.pyx
 include example.py
-include test_tjson5.py
-include LICENSE
+include test_01.py
+include test_02.py
