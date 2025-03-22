@@ -39,6 +39,7 @@ setup(
     author_email="kristofmulier@gmail.com",
     url="https://github.com/kristofmulier/triple-json5",
     license="MIT",
+    packages=["tjson5"],
     ext_modules=ext_modules,
     python_requires=">=3.7",
     # No setup_requires to avoid deprecation warnings
