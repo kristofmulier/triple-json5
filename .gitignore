@@ -5,6 +5,7 @@ npm-debug.log*
 
 # IDE & editors
 .idea
+.vscode/
 
 # Dependency directory
 node_modules/
@@ -12,3 +13,35 @@ node_modules/
 # Compiled and tempory files
 .tmp/
 out/
+
+# Python & Cython
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Python extension specific
+*.pyd
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
