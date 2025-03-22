@@ -11,7 +11,7 @@ Usage:
 import tjson5
 
 # Parse a TJSON5 string
-data = tjson5.parse('{"key": """multi-line value"""}')
+data = tjson5.parse('{"key": "multi-line value"}')
 
 # Load from a file
 with open('config.tjson5', 'r') as f:
@@ -26,4 +26,4 @@ with open('output.json', 'w') as f:
 from tjson5parser import *
 
 # Define the version
-__version__ = "0.1.2"
+__version__ = "0.1.3"

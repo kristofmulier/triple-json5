@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """
-Example script showing how to use the tjson5parser module
+Example script showing how to use the tjson5 module 
+(with the new, more consistent import name)
 """
 import sys
-import tjson5parser
+import tjson5  # Import the package, not the extension directly
 
 # Sample Triple-JSON5 string
 sample = '''{
@@ -20,7 +21,7 @@ sample = '''{
 def main():
     try:
         # Parse the sample string
-        data = tjson5parser.parse(sample)
+        data = tjson5.parse(sample)
         
         # Print the results
         print("\nParsed TJSON5 data:")
@@ -40,15 +41,18 @@ def main():
         print("\nTo read from a file:")
         print("-" * 40)
         print("with open('config.tjson5', 'r') as f:")
-        print("    config = tjson5parser.load(f)")
+        print("    config = tjson5.load(f)")
         
         # And write to a file (standard JSON format)
         print("\nTo write to a file:")
         print("-" * 40)
         print("with open('output.json', 'w') as f:")
-        print("    tjson5parser.dump(data, f, indent=2)")
+        print("    tjson5.dump(data, f, indent=2)")
         
-    except tjson5parser.TJSON5ParseError as e:
+        # Show version
+        print(f"\nTJSON5 Version: {tjson5.__version__}")
+        
+    except tjson5.TJSON5ParseError as e:
         print(f"Parse error: {e}")
         return 1
     

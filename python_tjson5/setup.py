@@ -31,7 +31,7 @@ if USE_CYTHON:
 
 setup(
     name="tjson5",
-    version="0.1.2",
+    version="0.1.4",
     description="Triple-JSON5 parser for Python",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -46,7 +46,7 @@ setup(
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
-        "License :: OSI Approved :: MIT License",
+        # License is specified in license field with SPDX identifier
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
