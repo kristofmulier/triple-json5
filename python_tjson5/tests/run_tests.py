@@ -16,14 +16,32 @@ def run_test(test_script, description):
     
     start_time = time.time()
     try:
-        result = subprocess.run([sys.executable, test_script], capture_output=True, text=True)
+        # Add PYTHONIOENCODING=utf-8 to environment to avoid encoding issues
+        env = os.environ.copy()
+        env['PYTHONIOENCODING'] = 'utf-8'
+        
+        # Run the test script with the specified environment
+        result = subprocess.run(
+            [sys.executable, test_script],
+            capture_output=True,
+            text=True,
+            env=env,
+            errors='replace'  # Handle any Unicode decoding errors in output
+        )
         end_time = time.time()
         
         if result.returncode == 0:
-            print(f"{description} PASSED in {end_time - start_time:.2f}s")
+            print(f"✓ {description} PASSED in {end_time - start_time:.2f}s")
+            # Print a brief success message
+            output_lines = result.stdout.splitlines()
+            if output_lines:
+                # Print the last few lines of successful output
+                print("\nOutput Summary:")
+                for line in output_lines[-min(5, len(output_lines)):]:
+                    print(f"  {line}")
             return True
         else:
-            print(f"{description} FAILED in {end_time - start_time:.2f}s")
+            print(f"✗ {description} FAILED in {end_time - start_time:.2f}s")
             print("\nOutput:")
             print(result.stdout)
             print("\nErrors:")
@@ -31,6 +49,8 @@ def run_test(test_script, description):
             return False
     except Exception as e:
         print(f"Error running {test_script}: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 def main():

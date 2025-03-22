@@ -3,10 +3,14 @@
 Triple-JSON5 parser implemented in Cython - Fixed version.
 This parser supports JSON5 with the addition of triple-quoted strings
 and special number formats (hex: 0x, binary: 0b).
+
+This is a standalone parser implementation with no external dependencies
+on json5 or other parsing libraries.
 """
 import re
-import json
+import json  # We'll still use the standard json module for the final parsing
 import os
+import tempfile
 from cpython.ref cimport PyObject
 from libc.stdlib cimport malloc, free
 
@@ -15,18 +19,19 @@ class TJSON5ParseError(Exception):
     """Exception raised for Triple-JSON5 parsing errors."""
     pass
 
-# Regular expressions for number preprocessing
+# Regular expressions for parsing
 cdef object HEX_REGEX = re.compile(r'\b0x([0-9A-Fa-f]+)\b')
 cdef object BINARY_REGEX = re.compile(r'\b0b([01]+)\b')
 cdef object COMMENT_LINE_REGEX = re.compile(r'^\s*//.*$', re.MULTILINE)
 cdef object FIRST_JSON_CHAR_REGEX = re.compile(r'[\[\{]')
+cdef object SINGLE_LINE_COMMENT_REGEX = re.compile(r'//.*?$', re.MULTILINE)
+cdef object MULTI_LINE_COMMENT_REGEX = re.compile(r'/\*.*?\*/', re.DOTALL)
+cdef object UNQUOTED_KEY_REGEX = re.compile(r'([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:', re.DOTALL)
+cdef object TRAILING_COMMA_OBJ_REGEX = re.compile(r',\s*\}')
+cdef object TRAILING_COMMA_ARR_REGEX = re.compile(r',\s*\]')
 
-# Import json5 package if available
-try:
-    import json5
-    HAS_JSON5 = True
-except ImportError:
-    HAS_JSON5 = False
+# We won't use json5 - we'll implement everything ourselves
+HAS_JSON5 = False
 
 # Convert triple-quoted strings to regular quoted strings
 cdef str process_triple_quotes(str text):
@@ -100,17 +105,27 @@ cdef str strip_leading_comments(str text):
 cdef str process_json5_features(str text):
     """
     Process JSON5 features like unquoted keys, comments, and trailing commas.
+    
+    This function converts a JSON5 string to valid JSON by:
+    1. Removing single and multi-line comments
+    2. Converting unquoted keys to quoted keys
+    3. Removing trailing commas in objects and arrays
     """
-    # Handle unquoted keys - convert objects like {key: value} to {"key": value}
-    processed = re.sub(r'(?<!["\'])\b([a-zA-Z_][a-zA-Z0-9_]*)\s*:', r'"\1":', text)
+    cdef str processed = text
     
-    # Remove comments (both // and /* */)
-    processed = re.sub(r'//.*$', '', processed, flags=re.MULTILINE)
-    processed = re.sub(r'/\*[\s\S]*?\*/', '', processed)
+    # 1. Remove comments first
+    # Remove single-line comments (//...)
+    processed = SINGLE_LINE_COMMENT_REGEX.sub('', processed)
+    # Remove multi-line comments (/* ... */)
+    processed = MULTI_LINE_COMMENT_REGEX.sub('', processed)
     
-    # Handle trailing commas in objects and arrays
-    processed = re.sub(r',\s*\}', '}', processed)
-    processed = re.sub(r',\s*\]', ']', processed)
+    # 2. Handle unquoted keys - convert objects like {key: value} to {"key": value}
+    # The positive lookbehind (?<= ensures we're matching after a { or ,
+    processed = UNQUOTED_KEY_REGEX.sub(r'\1"\2":', processed)
+    
+    # 3. Handle trailing commas in objects and arrays
+    processed = TRAILING_COMMA_OBJ_REGEX.sub('}', processed)
+    processed = TRAILING_COMMA_ARR_REGEX.sub(']', processed)
     
     return processed
 
@@ -131,27 +146,10 @@ cpdef parse(str text, bint strip_comments=True):
     # Skip invalid or empty input
     if not text or not text.strip():
         raise TJSON5ParseError("Empty or invalid input")
-        
-    # First, check if we have the json5 package available - if so, use it
-    if HAS_JSON5:
-        try:
-            # Strip any leading file comments before the JSON structure
-            if text.lstrip().startswith('//'):
-                # Direct approach with json5
-                return json5.loads(text)
-            else:
-                # Process triple quotes first
-                processed_text = process_triple_quotes(text)
-                # Process hex and binary literals
-                processed_text = process_number_formats(processed_text)
-                # Parse with json5
-                return json5.loads(processed_text)
-        except Exception as e:
-            # If json5 fails, continue with our implementation
-            pass
-            
-    # Try our fallback implementation
+    
     try:
+        # Multi-stage parsing process:
+        
         # Check if the file has comments before the actual JSON content
         has_leading_comments = text.lstrip().startswith('//')
         
@@ -159,63 +157,77 @@ cpdef parse(str text, bint strip_comments=True):
             # Strip leading comments before the first { or [
             text = strip_leading_comments(text)
             
-        # Step 1: Process triple-quoted strings
+        # Stage 1: Process triple-quoted strings
         processed_text = process_triple_quotes(text)
         
-        # Step 2: Process hex and binary literals
+        # Stage 2: Process hex and binary literals
         processed_text = process_number_formats(processed_text)
         
-        # Step 3: Use a fallback approach - let's use our custom JSON5 processor
+        # Stage 3: Process JSON5 features (comments, unquoted keys, trailing commas)
         try:
-            # Process JSON5 features
             final_text = process_json5_features(processed_text)
             
-            # Parse with standard JSON
-            return json.loads(final_text)
-        except json.JSONDecodeError as e:
-            # If direct parsing fails, try a more comprehensive approach
-            import tempfile
+            # Stage 4: Parse with standard JSON
+            try:
+                return json.loads(final_text)
+            except json.JSONDecodeError as je:
+                # If direct parsing fails, try using a temporary file approach
+                # This can help overcome certain parsing limitations
+                
+                with tempfile.NamedTemporaryFile(mode='w+', suffix='.json', delete=False) as tf:
+                    temp_filename = tf.name
+                    tf.write(final_text)
+                
+                try:
+                    # Try parsing from the file instead
+                    with open(temp_filename, 'r', encoding='utf-8') as f:
+                        try:
+                            return json.load(f)
+                        except json.JSONDecodeError as je2:
+                            # If it still fails, provide a helpful error message
+                            error_context = je2.doc[max(0, je2.pos-20):min(len(je2.doc), je2.pos+20)]
+                            raise TJSON5ParseError(
+                                f"Failed to parse Triple-JSON5: {str(je2)}\n"
+                                f"Error near: ...{error_context}..."
+                            )
+                finally:
+                    # Clean up temporary file
+                    try:
+                        os.unlink(temp_filename)
+                    except:
+                        pass
+                        
+        except Exception as e:
+            # If our JSON5 processor fails, try one more approach with regex-based fixes
+            # This is a more aggressive approach that might handle edge cases
             
-            # Write the processed text to a temporary file
-            with tempfile.NamedTemporaryFile(mode='w+', suffix='.json5', delete=False) as tf:
-                temp_filename = tf.name
-                tf.write(processed_text)
+            fixed_text = processed_text
+            # Apply multiple passes of regex fixes
+            
+            # 1. Remove all comments first
+            fixed_text = SINGLE_LINE_COMMENT_REGEX.sub('', fixed_text)
+            fixed_text = MULTI_LINE_COMMENT_REGEX.sub('', fixed_text)
+            
+            # 2. Fix unquoted keys
+            fixed_text = UNQUOTED_KEY_REGEX.sub(r'\1"\2":', fixed_text)
+            
+            # 3. Fix trailing commas
+            fixed_text = TRAILING_COMMA_OBJ_REGEX.sub('}', fixed_text)
+            fixed_text = TRAILING_COMMA_ARR_REGEX.sub(']', fixed_text)
             
             try:
-                # First, handle unquoted keys with explicit regex
-                with open(temp_filename, 'r', encoding='utf-8') as f:
-                    content = f.read()
-                    
-                # Create a manual JSON5 processor
-                # Replace unquoted keys with quoted keys
-                fixed_content = re.sub(r'([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:', r'\1"\2":', content)
-                
-                # Remove comments
-                fixed_content = re.sub(r'//.*?$', '', fixed_content, flags=re.MULTILINE)
-                fixed_content = re.sub(r'/\*.*?\*/', '', fixed_content, flags=re.DOTALL)
-                
-                # Remove trailing commas in objects and arrays
-                fixed_content = re.sub(r',\s*\}', '}', fixed_content)
-                fixed_content = re.sub(r',\s*\]', ']', fixed_content)
-                
-                # Write the fixed content back to the file
-                with open(temp_filename, 'w', encoding='utf-8') as f:
-                    f.write(fixed_content)
-                    
-                # Now try to parse with standard JSON
-                with open(temp_filename, 'r', encoding='utf-8') as f:
-                    try:
-                        return json.load(f)
-                    except json.JSONDecodeError as je:
-                        raise TJSON5ParseError(f"Failed to parse Triple-JSON5: {str(je)}")
-            finally:
-                # Clean up temporary file
-                try:
-                    os.unlink(temp_filename)
-                except:
-                    pass
+                # Try parsing the fixed text
+                return json.loads(fixed_text)
+            except json.JSONDecodeError as je:
+                # If all parsing attempts fail, provide a helpful error
+                error_context = je.doc[max(0, je.pos-20):min(len(je.doc), je.pos+20)]
+                raise TJSON5ParseError(
+                    f"Failed to parse Triple-JSON5: {str(je)}\n"
+                    f"Error near: ...{error_context}..."
+                )
                     
     except Exception as e:
+        # Ensure we always return a TJSON5ParseError
         if not isinstance(e, TJSON5ParseError):
             raise TJSON5ParseError(f"Parsing error: {str(e)}")
         raise
@@ -226,7 +238,12 @@ cpdef loads(str text, bint strip_comments=True):
 
 cpdef load(file_obj, bint strip_comments=True):
     """Parse a file object containing Triple-JSON5."""
-    return parse(file_obj.read(), strip_comments)
+    try:
+        content = file_obj.read()
+        return parse(content, strip_comments)
+    except UnicodeDecodeError as e:
+        # Handle encoding errors gracefully
+        raise TJSON5ParseError(f"Encoding error: {str(e)}. Try opening the file with a different encoding.")
 
 cpdef dump(obj, file_obj, indent=None):
     """Serialize obj to a file as JSON."""

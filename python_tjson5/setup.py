@@ -31,7 +31,7 @@ if USE_CYTHON:
 
 setup(
     name="tjson5",
-    version="0.1.6",
+    version="0.1.7",
     description="Triple-JSON5 parser for Python",
     long_description=long_description,
     long_description_content_type="text/markdown",

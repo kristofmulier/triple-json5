@@ -35,20 +35,11 @@ def main():
     file_size = os.path.getsize(test_file) / 1024  # KB
     print(f"Found test file: {test_file} ({file_size:.1f} KB)")
     
-    # Read the file content
-    try:
-        with open(test_file, 'r', encoding='utf-8') as f:
-            content = f.read()
-        print(f"Successfully read file with {len(content)} characters")
-    except Exception as e:
-        print(f"Error reading file: {e}")
-        return 1
-    
-    # Parse the file
+    # Parse the file directly using the new load_file function
     print("\nParsing file...")
     start_time = time.time()
     try:
-        data = tjson5.parse(content)
+        data = tjson5.load_file(test_file)
         end_time = time.time()
         parse_time = end_time - start_time
         print(f"Successfully parsed file in {parse_time:.2f} seconds")

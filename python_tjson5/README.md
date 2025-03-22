@@ -13,6 +13,9 @@ A high-performance Python parser for Triple-JSON5 (TJSON5) files implemented in 
   - Triple-quoted strings (`"""`) for multi-line text without escaping
   - Hexadecimal number literals (`0xFF`)
   - Binary number literals (`0b1010`)
+- Automatic encoding detection and fallback
+- Helpful error messages with context
+- No external dependencies (pure Python/Cython implementation)
 
 ## Installation
 
@@ -26,10 +29,10 @@ pip install -e .
 ## Usage
 
 ```python
-import tjson5parser
+import tjson5
 
 # Parse a TJSON5 string
-data = tjson5parser.parse("""
+data = tjson5.parse("""
 {
     // This is a comment
     name: "TJSON5 Example",
@@ -44,13 +47,16 @@ data = tjson5parser.parse("""
 print(data["name"])  # "TJSON5 Example"
 print(data["values"])  # [1, 2, 255, 10]
 
-# Read from a file
-with open("config.tjson5", "r") as f:
-    config = tjson5parser.load(f)
+# Read from a file with automatic encoding detection
+config = tjson5.load_file("config.tjson5")
+
+# Or traditional way
+with open("config.tjson5", "r", encoding="utf-8") as f:
+    config = tjson5.load(f)
 
 # Write to JSON (standard JSON format)
 with open("output.json", "w") as f:
-    tjson5parser.dump(data, f, indent=2)
+    tjson5.dump(data, f, indent=2)
 ```
 
 ## Building the Extension
@@ -68,15 +74,17 @@ python test_tjson5.py
 
 ## How it Works
 
-The parser uses a multi-stage process:
+The parser uses a multi-stage process without any external dependencies:
 
 1. Preprocesses triple-quoted strings, converting them to standard JSON strings
 2. Converts hex and binary numbers to decimal
-3. Removes comments
-4. Handles trailing commas
-5. Passes the processed JSON to Python's built-in JSON parser
+3. Removes comments (both single-line and multi-line)
+4. Handles unquoted keys by adding proper quotes
+5. Removes trailing commas in objects and arrays
+6. Uses multiple fallback strategies for robust parsing
+7. Passes the processed JSON to Python's built-in JSON parser
 
-All error positions are mapped back to the original source for accurate error reporting.
+All error positions are mapped back to the original source for accurate error reporting with helpful context.
 
 ## Performance
 

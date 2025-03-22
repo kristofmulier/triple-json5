@@ -91,7 +91,7 @@ echo "----------------------"
 echo "This will publish the package to PyPI, making it available for anyone to install."
 echo
 echo "Before continuing, ensure you have:"
-echo "1. Updated the version number in setup.py if needed (current: 0.1.6)"
+echo "1. Updated the version number in setup.py if needed (current: 0.1.7)"
 echo "2. Set up your PyPI API token in your .pypirc file or as environment variables"
 echo
 echo "To set up your PyPI API token:"
