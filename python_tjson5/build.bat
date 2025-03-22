@@ -4,6 +4,9 @@ setlocal enabledelayedexpansion
 echo Publishing Triple-JSON5 Python package to PyPI
 echo ---------------------------------------------
 
+:: Set to 1 to run tests before building
+set RUN_TESTS=1
+
 :: Check if Python is available
 where python >nul 2>&1
 if %ERRORLEVEL% neq 0 (
@@ -33,6 +36,25 @@ python setup.py build_ext --inplace --use-cython
 if %ERRORLEVEL% neq 0 (
     echo Failed to compile Cython code.
     exit /b 1
+)
+
+:: Run tests if enabled
+if %RUN_TESTS% equ 1 (
+    echo.
+    echo Running package tests...
+    python tests\run_tests.py
+    if %ERRORLEVEL% neq 0 (
+        echo.
+        echo WARNING: Tests failed. Do you want to continue anyway? (y/n)
+        choice /c yn /m "Continue build"
+        if %ERRORLEVEL% neq 1 (
+            echo Build cancelled due to test failures.
+            exit /b 1
+        )
+        echo Continuing build despite test failures...
+    ) else (
+        echo All tests passed!
+    )
 )
 
 :: Build both wheel (for Windows) and source distribution (for Linux/other platforms)

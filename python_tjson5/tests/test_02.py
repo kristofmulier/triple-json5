@@ -1,3 +1,12 @@
+import sys
+import os
+from pathlib import Path
+
+# Add project directory to path to import the package
+project_dir = Path(__file__).parent.parent
+sys.path.insert(0, str(project_dir))
+
+# Import the parser
 import tjson5parser
 
 # Sample TJSON5 string with the special features

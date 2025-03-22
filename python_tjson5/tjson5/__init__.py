@@ -26,4 +26,4 @@ with open('output.json', 'w') as f:
 from tjson5parser import *
 
 # Define the version
-__version__ = "0.1.3"
+__version__ = "0.1.6"
