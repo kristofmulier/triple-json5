@@ -31,7 +31,9 @@ def run_test(test_script, description):
         end_time = time.time()
         
         if result.returncode == 0:
-            print(f"✓ {description} PASSED in {end_time - start_time:.2f}s")
+            # Use ASCII symbols for Windows compatibility
+            check_mark = "√" if os.name != 'nt' else "PASS"
+            print(f"{check_mark} {description} PASSED in {end_time - start_time:.2f}s")
             # Print a brief success message
             output_lines = result.stdout.splitlines()
             if output_lines:
@@ -41,7 +43,9 @@ def run_test(test_script, description):
                     print(f"  {line}")
             return True
         else:
-            print(f"✗ {description} FAILED in {end_time - start_time:.2f}s")
+            # Use ASCII symbols for Windows compatibility
+            x_mark = "×" if os.name != 'nt' else "FAIL"
+            print(f"{x_mark} {description} FAILED in {end_time - start_time:.2f}s")
             print("\nOutput:")
             print(result.stdout)
             print("\nErrors:")
