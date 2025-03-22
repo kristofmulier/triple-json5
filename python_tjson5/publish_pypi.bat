@@ -71,15 +71,11 @@ echo ----------------------
 echo This will publish the package to PyPI, making it available for anyone to install.
 echo.
 echo Before continuing, ensure you have:
-echo 1. Updated the version number in setup.py if needed (current: 0.1.0)
+echo 1. Updated the version number in setup.py if needed
 echo 2. Set up your PyPI credentials in one of these ways:
 echo.
 echo    Option 1: Create a .pypirc file at C:\Users\krist\.pypirc with:
 echo        [pypi]
-echo        username = kmulier
-echo        password = your_password
-echo.
-echo        [testpypi]
 echo        username = kmulier
 echo        password = your_password
 echo.
@@ -93,44 +89,19 @@ echo.
 
 :: Main menu
 echo Choose an option:
-echo 1. Upload to Test PyPI only
-echo 2. Upload to main PyPI only
-echo 3. Upload to Test PyPI, then main PyPI
-echo 4. Cancel and exit
+echo 1. Upload to PyPI
+echo 2. Cancel and exit
 echo.
 
-set /p CHOICE="Enter option (1-4): "
+set /p CHOICE="Enter option (1-2): "
 
-if "%CHOICE%"=="1" goto TESTPYPI_ONLY
-if "%CHOICE%"=="2" goto PYPI_ONLY
-if "%CHOICE%"=="3" goto TESTPYPI_THEN_PYPI
-if "%CHOICE%"=="4" goto EXIT_SCRIPT
+if "%CHOICE%"=="1" goto PYPI_UPLOAD
+if "%CHOICE%"=="2" goto EXIT_SCRIPT
 
-echo Invalid selection. Please select 1-4.
+echo Invalid selection. Please select 1 or 2.
 exit /b 1
 
-:TESTPYPI_ONLY
-echo.
-echo Uploading to Test PyPI...
-python -m twine upload --repository testpypi dist/* --verbose
-if %ERRORLEVEL% neq 0 (
-    echo.
-    echo ERROR: Failed to upload to Test PyPI.
-    echo.
-    echo This may be caused by:
-    echo 1. Authentication failure - Check your .pypirc file or environment variables
-    echo 2. Package name 'tjson5' may already be taken on TestPyPI
-    echo 3. Version 0.1.0 may already exist - try incrementing the version in setup.py
-    echo.
-    exit /b 1
-)
-echo.
-echo Successfully uploaded to Test PyPI!
-echo To test installation from Test PyPI:
-echo pip install --index-url https://test.pypi.org/simple/ tjson5
-goto EXIT_SUCCESS
-
-:PYPI_ONLY
+:PYPI_UPLOAD
 echo.
 echo Uploading to PyPI...
 python -m twine upload dist/* --verbose
@@ -141,46 +112,11 @@ if %ERRORLEVEL% neq 0 (
     echo This may be caused by:
     echo 1. Authentication failure - Check your .pypirc file or environment variables
     echo 2. Package name 'tjson5' may already be taken on PyPI
-    echo 3. Version 0.1.0 may already exist - try incrementing the version in setup.py
+    echo 3. Version number may already exist - try incrementing the version in setup.py
     echo.
     exit /b 1
 )
-goto EXIT_SUCCESS
 
-:TESTPYPI_THEN_PYPI
-echo.
-echo Uploading to Test PyPI first...
-python -m twine upload --repository testpypi dist/* --verbose
-if %ERRORLEVEL% neq 0 (
-    echo.
-    echo ERROR: Failed to upload to Test PyPI.
-    echo.
-    echo This may be caused by:
-    echo 1. Authentication failure - Check your .pypirc file or environment variables
-    echo 2. Package name 'tjson5' may already be taken on TestPyPI
-    echo 3. Version 0.1.0 may already exist - try incrementing the version in setup.py
-    echo.
-    echo Skipping upload to main PyPI due to Test PyPI failure.
-    exit /b 1
-)
-echo.
-echo Successfully uploaded to Test PyPI!
-echo.
-echo Now uploading to main PyPI...
-python -m twine upload dist/* --verbose
-if %ERRORLEVEL% neq 0 (
-    echo.
-    echo ERROR: Failed to upload to main PyPI.
-    echo.
-    echo This may be caused by:
-    echo 1. Authentication failure - Check your .pypirc file or environment variables
-    echo 2. Package name 'tjson5' may already be taken on PyPI
-    echo 3. Version 0.1.0 may already exist - try incrementing the version in setup.py
-    exit /b 1
-)
-goto EXIT_SUCCESS
-
-:EXIT_SUCCESS
 echo.
 echo ================================================
 echo Successfully published tjson5 to PyPI!
