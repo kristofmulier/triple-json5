@@ -43,7 +43,9 @@ if %RUN_TESTS% equ 1 (
     echo.
     echo Running package tests...
     python tests\run_tests.py
-    if %ERRORLEVEL% neq 0 (
+    set TEST_RESULT=%ERRORLEVEL%
+    
+    if %TEST_RESULT% neq 0 (
         echo.
         echo WARNING: Tests failed. Do you want to continue anyway? (y/n)
         choice /c yn /m "Continue build"
@@ -53,7 +55,14 @@ if %RUN_TESTS% equ 1 (
         )
         echo Continuing build despite test failures...
     ) else (
-        echo All tests passed!
+        echo.
+        echo All tests PASSED!
+        choice /c yn /m "Continue build"
+        if %ERRORLEVEL% neq 1 (
+            echo Build cancelled by user.
+            exit /b 0
+        )
+        echo Continuing with build process...
     )
 )
 
