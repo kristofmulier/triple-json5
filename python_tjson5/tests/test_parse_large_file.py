@@ -19,7 +19,7 @@ def main():
     # Import the tjson5 package
     try:
         import tjson5
-        print(f"✓ Using tjson5 version {tjson5.__version__}")
+        print(f"Using tjson5 version {tjson5.__version__}")
     except ImportError as e:
         print(f"Error importing tjson5: {e}")
         return 1
@@ -33,13 +33,13 @@ def main():
     
     # Get file size
     file_size = os.path.getsize(test_file) / 1024  # KB
-    print(f"✓ Found test file: {test_file} ({file_size:.1f} KB)")
+    print(f"Found test file: {test_file} ({file_size:.1f} KB)")
     
     # Read the file content
     try:
         with open(test_file, 'r', encoding='utf-8') as f:
             content = f.read()
-        print(f"✓ Successfully read file with {len(content)} characters")
+        print(f"Successfully read file with {len(content)} characters")
     except Exception as e:
         print(f"Error reading file: {e}")
         return 1
@@ -51,7 +51,7 @@ def main():
         data = tjson5.parse(content)
         end_time = time.time()
         parse_time = end_time - start_time
-        print(f"✓ Successfully parsed file in {parse_time:.2f} seconds")
+        print(f"Successfully parsed file in {parse_time:.2f} seconds")
         
         # Print some basic info about the parsed content
         if isinstance(data, dict):

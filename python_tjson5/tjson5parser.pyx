@@ -96,6 +96,24 @@ cdef str strip_leading_comments(str text):
                 return text[start_pos:]
     return text
 
+# Process JSON5 unquoted keys and other features
+cdef str process_json5_features(str text):
+    """
+    Process JSON5 features like unquoted keys, comments, and trailing commas.
+    """
+    # Handle unquoted keys - convert objects like {key: value} to {"key": value}
+    processed = re.sub(r'(?<!["\'])\b([a-zA-Z_][a-zA-Z0-9_]*)\s*:', r'"\1":', text)
+    
+    # Remove comments (both // and /* */)
+    processed = re.sub(r'//.*$', '', processed, flags=re.MULTILINE)
+    processed = re.sub(r'/\*[\s\S]*?\*/', '', processed)
+    
+    # Handle trailing commas in objects and arrays
+    processed = re.sub(r',\s*\}', '}', processed)
+    processed = re.sub(r',\s*\]', ']', processed)
+    
+    return processed
+
 cpdef parse(str text, bint strip_comments=True):
     """
     Parse a Triple-JSON5 string and return the corresponding Python object.
@@ -147,19 +165,15 @@ cpdef parse(str text, bint strip_comments=True):
         # Step 2: Process hex and binary literals
         processed_text = process_number_formats(processed_text)
         
-        # Step 3: Use a fallback approach - let's use a library that can parse JSON5 format
+        # Step 3: Use a fallback approach - let's use our custom JSON5 processor
         try:
-            # If we got here with json5 available, we'll try once more with preprocessed text
-            if HAS_JSON5:
-                return json5.loads(processed_text)
-            else:
-                # Otherwise fall back to json module
-                # This might fail for JSON5 features, so we'll catch and report
-                return json.loads(processed_text)
-        except Exception as e:
-            # If we get here, we need to provide a better error message
-            # Fall back to a different implementation via shell command if possible
-            import subprocess
+            # Process JSON5 features
+            final_text = process_json5_features(processed_text)
+            
+            # Parse with standard JSON
+            return json.loads(final_text)
+        except json.JSONDecodeError as e:
+            # If direct parsing fails, try a more comprehensive approach
             import tempfile
             
             # Write the processed text to a temporary file
@@ -168,25 +182,32 @@ cpdef parse(str text, bint strip_comments=True):
                 tf.write(processed_text)
             
             try:
-                # Try to load the file with node/npm if available
-                # This is more reliable for JSON5 parsing
-                result = subprocess.run(
-                    ['node', '-e', f'console.log(JSON.stringify(require("json5").parse(require("fs").readFileSync("{temp_filename}", "utf8"))))'],
-                    capture_output=True,
-                    text=True,
-                    check=True
-                )
-                # Parse the stringified result back to Python object
-                return json.loads(result.stdout)
-            except subprocess.CalledProcessError as node_error:
-                # Provide detailed error with node.js output if available
-                error_msg = f"Failed to parse Triple-JSON5 with Node.js: {str(e)}"
-                if hasattr(node_error, 'stderr') and node_error.stderr:
-                    error_msg += f"\nNode.js error: {node_error.stderr}"
-                raise TJSON5ParseError(error_msg)
-            except Exception as other_error:
-                # If all else fails, provide a detailed error
-                raise TJSON5ParseError(f"Failed to parse Triple-JSON5: {str(e)}")
+                # First, handle unquoted keys with explicit regex
+                with open(temp_filename, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                    
+                # Create a manual JSON5 processor
+                # Replace unquoted keys with quoted keys
+                fixed_content = re.sub(r'([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:', r'\1"\2":', content)
+                
+                # Remove comments
+                fixed_content = re.sub(r'//.*?$', '', fixed_content, flags=re.MULTILINE)
+                fixed_content = re.sub(r'/\*.*?\*/', '', fixed_content, flags=re.DOTALL)
+                
+                # Remove trailing commas in objects and arrays
+                fixed_content = re.sub(r',\s*\}', '}', fixed_content)
+                fixed_content = re.sub(r',\s*\]', ']', fixed_content)
+                
+                # Write the fixed content back to the file
+                with open(temp_filename, 'w', encoding='utf-8') as f:
+                    f.write(fixed_content)
+                    
+                # Now try to parse with standard JSON
+                with open(temp_filename, 'r', encoding='utf-8') as f:
+                    try:
+                        return json.load(f)
+                    except json.JSONDecodeError as je:
+                        raise TJSON5ParseError(f"Failed to parse Triple-JSON5: {str(je)}")
             finally:
                 # Clean up temporary file
                 try:

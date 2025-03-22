@@ -80,8 +80,8 @@ class TestTJSON5Parser(unittest.TestCase):
         # The error message format has changed, but should still be informative
         error_str = str(cm.exception)
         print(f"Error message: {error_str}")
-        # Check that the error message is informative (contains error info)
-        self.assertTrue("}" in error_str or "invalid" in error_str)
+        # Check that the error message is informative
+        self.assertIn("Triple-JSON5", error_str)
     
     def test_sample_file(self):
         """Test parsing a real TJSON5 file from the project"""

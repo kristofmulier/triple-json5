@@ -20,17 +20,17 @@ def run_test(test_script, description):
         end_time = time.time()
         
         if result.returncode == 0:
-            print(f"✓ {description} PASSED in {end_time - start_time:.2f}s")
+            print(f"{description} PASSED in {end_time - start_time:.2f}s")
             return True
         else:
-            print(f"× {description} FAILED in {end_time - start_time:.2f}s")
+            print(f"{description} FAILED in {end_time - start_time:.2f}s")
             print("\nOutput:")
             print(result.stdout)
             print("\nErrors:")
             print(result.stderr)
             return False
     except Exception as e:
-        print(f"× Error running {test_script}: {e}")
+        print(f"Error running {test_script}: {e}")
         return False
 
 def main():
@@ -66,10 +66,10 @@ def main():
     
     # Overall result
     if all(results):
-        print("\n✓ All tests PASSED!")
+        print("\nAll tests PASSED!")
         return 0
     else:
-        print(f"\n× {results.count(False)} test(s) FAILED!")
+        print(f"\n{results.count(False)} test(s) FAILED!")
         return 1
 
 if __name__ == "__main__":
